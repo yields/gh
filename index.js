@@ -20,7 +20,7 @@ var api = 'https://api.github.com';
 module.exports = Client;
 
 /**
- * Fetch releases with `opts`:
+ * Fetch refs with `opts`:
  *
  * - `token` optional github token
  * - `user` optional github user
@@ -116,7 +116,7 @@ Client.prototype.get = function(path, fn){
 };
 
 /**
- * Respond with releases for `repo`.
+ * Respond with all the references for `repo`.
  *
  *   gh.releases('component/tip', fn);
  *
@@ -125,8 +125,8 @@ Client.prototype.get = function(path, fn){
  * @api public
  */
 
-Client.prototype.releases = function(repo, fn){
-  this.get('/repos/' + repo + '/tags', fn);
+Client.prototype.refs = function(repo, fn){
+  this.get('/repos/' + repo + '/git/refs', fn);
 };
 
 /**
@@ -158,14 +158,32 @@ Client.prototype.contents = function(repo, ref, path, fn){
  */
 
 Client.prototype.lookup = function(repo, version, fn){
-  this.releases(repo, function(err, tags){
+  this.refs(repo, function(err, refs){
     if (err) return fn(err);
 
+    var tags = [];
+    var branches = [];
+
+    for (var i = 0, ref; ref = refs[i]; i++) {
+      var name = ref.ref;
+      if (!name.indexOf('refs/tags/')) {
+        ref.name = name.slice(10);
+        tags.push(ref);
+      } else if (!name.indexOf('refs/heads/')) {
+        ref.name = name.slice(11);
+        branches.push(ref);
+      }
+    }
+
+    // prefer semver tag
     try {
-      var tag = find(tags, version);
+      var tag = findTag(tags.reverse(), version);
     } catch (err) {
       return fn(err);
     }
+
+    // if no tag, try a branch
+    tag = tag ? tag : findBranch(branches, version);
 
     fn(null, tag);
   });
@@ -183,11 +201,22 @@ function basic(user, pass) {
  * Find a release in `tags` that satisfies `version`.
  */
 
-function find(tags, version) {
-  for (var i = 0; i < tags.length; i++) {
-    var tag = tags[i];
-    if (semver.satisfies(tag.name, version)) {
-      return tag;
-    }
+function findTag(tags, version) {
+  for (var i = 0, tag; tag = tags[i]; i++) {
+    if (semver.satisfies(tag.name, version)) return tag;
   }
+
+  return null;
+}
+
+/**
+ * Find `branch` in refs
+ */
+
+function findBranch(branches, version) {
+  for (var i = 0, branch; branch = branches[i]; i++) {
+    if (version == branch.name) return branch;
+  }
+
+  return null;
 }
