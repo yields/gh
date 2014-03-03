@@ -1,4 +1,10 @@
 
+0.5.2 / 2014-03-03
+==================
+
+ * add * exception
+ * gh.lookup() now also includes branches (tests not yet passing)
+
 0.5.1 / 2014-02-05
 ==================
 
