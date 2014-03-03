@@ -182,6 +182,11 @@ Client.prototype.lookup = function(repo, version, fn){
       return fn(err);
     }
 
+    // only when there are no tags and version is "*"
+    // fallback to "master". otherwise, lots of packages
+    // break.
+    version = !tags.length && '*' == version ? 'master' : version;
+
     // if no tag, try a branch
     tag = tag ? tag : findBranch(branches, version);
 
